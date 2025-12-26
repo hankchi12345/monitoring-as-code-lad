@@ -66,12 +66,15 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    env_file:
+      - ./.grafana.env
+    volumes:
+      - ./grafana_data:/var/lib/grafana
     ports:
       - "3000:3000"
     networks:
       - monitoring 
-        
-
+     
 networks:
   monitoring:
     driver: bridge

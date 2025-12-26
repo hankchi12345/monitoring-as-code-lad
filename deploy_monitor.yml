@@ -1,14 +1,16 @@
 - name: alert_setting
   hosts: localhost
+  vars:
+    project_path: "/var/research"
   tasks:
     - name: 1 .File_existence_check
       file:
-         path: /var/research/alert
+         path: "{{project_path}}/alert"
          state: directory
          mode: '0755'
     - name: 2 . Alert_rules_use
       copy:
-        dest: /var/research/alert/alert_rules.yml
+        dest: "{{project_path}}/alert/alert_rules.yml"
         content: |
           groups:
             - name: victim_alerts
@@ -16,10 +18,30 @@
                 - alert: VictimIsTooStressed
                   expr: sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service="victim-host"}[1m])) > 0.9
         mode: '0644'
+#------grafana------#
+    - name: 3 . Create Grafana data directory
+      file:
+        path: "{{project_path}}/grafana_data"
+        state: directory
+        mode: '0777'
 
-    - name: 3 . Restart_the_Prometheus_container_to_pick_up_new_settings
+    - name: 4 . Create Grafana Enviroment File
+      copy:
+        dest: "{{project_path}}/.grafana.env"
+        content: |
+          GF_SECURITY_ADMIN_USER=ad
+          GF_SECURITY_ADMIN_PASSWORD=password
+          GF_USERS_ALLOW_SIGN_UP=false
+        mode: '0600'
+
+
+#-----docker compose------#
+
+    - name: 5 . Restart_the_Prometheus_container_to_pick_up_new_settings
       community.docker.docker_compose_v2:
-        project_src: /var/research/
+        project_src: "{{project_path}}"
         state: present
-        services: [prometheus]
-        recreate: always 
+        services: 
+          - prometheus
+          - grafana
+        recreate: always
