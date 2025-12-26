@@ -1,0 +1,25 @@
+- name: alert_setting
+  hosts: localhost
+  tasks:
+    - name: 1 .File_existence_check
+      file:
+         path: /var/research/alert
+         state: directory
+         mode: '0755'
+    - name: 2 . Alert_rules_use
+      copy:
+        dest: /var/research/alert/alert_rules.yml
+        content: |
+          groups:
+            - name: victim_alerts
+              rules:
+                - alert: VictimIsTooStressed
+                  expr: sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service="victim-host"}[1m])) > 0.9
+        mode: '0644'
+
+    - name: 3 . Restart_the_Prometheus_container_to_pick_up_new_settings
+      community.docker.docker_compose_v2:
+        project_src: /var/research/
+        state: present
+        services: [prometheus]
+        recreate: always 
