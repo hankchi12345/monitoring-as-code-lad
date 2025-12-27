@@ -8,16 +8,16 @@ services:
       - ./alert/alert_rules.yml:/etc/prometheus/alert/alert_rules.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-    ports:
-      - "9090:9090"
+    expose:
+      - "9090"
     networks:
       - monitoring
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: alertmanager
-    ports:
-      - "9093:9093"
+    expose:
+      - "9093"
     volumes:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
     networks:
@@ -41,16 +41,16 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro # <--- 補上這一行，名稱才會出來
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     networks:
       - monitoring
 
   node-exporter:
     image: prom/node-exporter:v1.8.1
     container_name: node-exporter
-    ports:
-      - "9100:9100"
+    expose :
+      - "9100"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
@@ -70,8 +70,8 @@ services:
       - ./.grafana.env
     volumes:
       - ./grafana_data:/var/lib/grafana
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     networks:
       - monitoring 
      

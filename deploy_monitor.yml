@@ -1,47 +1,72 @@
+---
 - name: alert_setting
-  hosts: localhost
+  hosts: monitoring_servers
+  become: yes
+  vars_files:
+    - vars.yml
   vars:
     project_path: "/var/research"
+
   tasks:
+    # --- 第一部分：Docker 安裝檢查 (移動到 tasks 內) ---
+
+    - name: 0. Install Docker via official script
+      shell: |
+        if ! command -v docker &> /dev/null; then
+          curl -fsSL https://get.docker.com | sh
+        fi
+      register: docker_install
+      changed_when: "'Installing' in docker_install.stdout"
+
+    - name: 0.5 Ensure Docker service is started
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # --- 第二部分：監控系統部署任務 ---
     - name: 1 .File_existence_check
       file:
-         path: "{{project_path}}/alert"
-         state: directory
-         mode: '0755'
+        path: "{{ item }}"
+        state: directory
+        mode: '0777'
+      loop:
+        - "{{ project_path }}"
+        - "{{ project_path }}/alert"
+        - "{{ project_path }}/grafana_data"
+
     - name: 2 . Alert_rules_use
       copy:
-        dest: "{{project_path}}/alert/alert_rules.yml"
+        dest: "{{ project_path }}/alert/alert_rules.yml"
         content: |
           groups:
             - name: victim_alerts
               rules:
                 - alert: VictimIsTooStressed
                   expr: sum(rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_service="victim-host"}[1m])) > 0.9
-        mode: '0644'
-#------grafana------#
-    - name: 3 . Create Grafana data directory
-      file:
-        path: "{{project_path}}/grafana_data"
-        state: directory
         mode: '0777'
+
+    - name: 3 . Create Grafana data directory
+      copy:
+        src: "{{ item }}"
+        dest: "{{ project_path }}/{{ item }}"
+        mode: '0777'
+      loop:
+        - "docker-compose.yml"
+        - "prometheus.yml"
+        - "alertmanager.yml"
 
     - name: 4 . Create Grafana Enviroment File
       copy:
-        dest: "{{project_path}}/.grafana.env"
+        dest: "{{ project_path }}/.grafana.env"
         content: |
-          GF_SECURITY_ADMIN_USER=ad
-          GF_SECURITY_ADMIN_PASSWORD=password
+          GF_SECURITY_ADMIN_USER={{ grafana_admin_user }}
+          GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
           GF_USERS_ALLOW_SIGN_UP=false
         mode: '0600'
-
-
-#-----docker compose------#
-
+    # --- 第三部分：啟動服務 ---
     - name: 5 . Restart_the_Prometheus_container_to_pick_up_new_settings
       community.docker.docker_compose_v2:
-        project_src: "{{project_path}}"
+        project_src: "{{ project_path }}"
         state: present
-        services: 
-          - prometheus
-          - grafana
         recreate: always

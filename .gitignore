@@ -3,3 +3,5 @@
 data/
 .grafana.env
 grafana_data/
+vars.yml
+hosts.ini
